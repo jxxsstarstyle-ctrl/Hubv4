@@ -3,34 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hubv4 - Lobby FPS</title>
-    <link rel="stylesheet" href="./src/styles.css" />
+    <title>Hubv4 - Client</title>
   </head>
   <body>
-    <main id="ui">
-      <section id="lobby" class="panel">
-        <h1>Lobby Hubv4</h1>
-        <p>Entre na sala para começar (W A S D + mouse).</p>
-        <form id="join-form">
-          <label>
-            Nome
-            <input id="name" maxlength="24" placeholder="Seu nick" required />
-          </label>
-          <button type="submit">Entrar na sala</button>
-        </form>
-        <small id="status">Servidor: aguardando conexão...</small>
-      </section>
-
-      <section id="hud" class="hidden">
-        <div id="hud-top">
-          <strong id="player-label"></strong>
-          <span id="players-count"></span>
-        </div>
-        <div id="hud-help">W A S D para mover • Mouse para olhar • ESC para liberar cursor</div>
-      </section>
-    </main>
-
-    <canvas id="game" class="hidden"></canvas>
-    <script type="module" src="./src/main.js"></script>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

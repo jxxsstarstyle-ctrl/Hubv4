@@ -1,7 +1,13 @@
 {
   "name": "@hubv4/shared",
-  "version": "0.2.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "src/protocol.js"
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
 }
