@@ -1,4 +1,4 @@
-const SERVER = window.HUBV4_SERVER_URL || (location.hostname.endsWith('github.io') ? '' : `${location.protocol}//${location.hostname}:8080`);
+const SERVER = `${location.protocol}//${location.hostname}:8080`;
 const canvas = document.querySelector('#game');
 const ctx = canvas.getContext('2d', { alpha: false });
 
@@ -54,9 +54,6 @@ function canMoveTo(nx, nz) {
 }
 
 async function api(path, method = 'GET', body) {
-  if (!SERVER) {
-    throw new Error('Servidor não configurado para este ambiente.');
-  }
   const res = await fetch(`${SERVER}${path}`, {
     method,
     headers: { 'content-type': 'application/json' },
@@ -251,6 +248,6 @@ function loop(now) {
     const health = await api('/health');
     statusEl.textContent = `Servidor online • sala ${health.roomSize}x${health.roomSize}`;
   } catch {
-    statusEl.textContent = SERVER ? `Servidor offline em ${SERVER}` : 'Cliente carregado. Defina HUBV4_SERVER_URL para multiplayer.';
+    statusEl.textContent = 'Servidor offline em http://localhost:8080';
   }
 })();

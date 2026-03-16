@@ -1,18 +1,20 @@
-# Sessão preparada: lobby + FPS base
+# Setup da sessão de desenvolvimento
 
-## Status atual
-- Lobby funcional para entrada na sala com nome.
-- Avatar em primeira pessoa com controles de PC (WASD + mouse).
-- Sala simples pronta para iteração de gameplay/network.
-- Sincronização mínima com servidor via `/input`.
+## Objetivo
+Deixar o time pronto para iniciar o MVP de um jogo 3D online sem perder tempo com organização inicial.
 
-## Arquitetura (MVP)
-- Cliente: render por raycasting em canvas (rápido e leve no ambiente atual).
-- Servidor: estado autoritativo básico em memória.
-- Shared: protocolo inicial para evolução.
+## Decisões já aplicadas
+- Monorepo com `npm workspaces`.
+- Separação entre cliente 3D, servidor online e pacote compartilhado.
+- Configuração base de TypeScript para consistência entre módulos.
 
-## Próximos passos
-1. Broadcast em tempo real (WebSocket) em vez de polling de input.
-2. Exibir outros jogadores no render (billboards/sprites).
-3. Adicionar colisão mais rica e objetos interativos da sala.
-4. Migrar para Three.js assim que dependências externas estiverem liberadas.
+## Convenções iniciais
+- Lógica de sincronização multiplayer vai para `apps/server`.
+- Tipos de mensagens, snapshots e entidades vão para `packages/shared`.
+- Cliente 3D só consome contratos definidos no compartilhado.
+
+## Primeiro backlog sugerido
+1. Definir protocolo de mensagens (join, input, snapshot, disconnect).
+2. Implementar estado autoritativo de jogadores no servidor.
+3. Renderizar um cubo por jogador no cliente e atualizar via snapshots.
+4. Adicionar interpolação e correção de posição no cliente.
