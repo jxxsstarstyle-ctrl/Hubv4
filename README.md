@@ -1,0 +1,79 @@
+# Hubv4 — Lobby FPS inicial
+
+Base funcional para começar o desenvolvimento do jogo 3D online com:
+
+- lobby simples (entrada por nome);
+- avatar em primeira pessoa;
+- movimentação WASD + mouse look;
+- sala inicial otimizada (raycasting em resolução interna reduzida);
+- servidor autoritativo mínimo para presença e input.
+
+## Rodando
+
+```bash
+npm run dev
+```
+
+- Cliente: `http://localhost:5173`
+- Servidor: `http://localhost:8080`
+
+## Controles
+
+- `W A S D`: movimentação
+- Mouse: olhar
+- `ESC`: solta o cursor
+
+## Endpoints
+
+- `GET /health`
+- `POST /join` `{ name }`
+- `POST /input` `{ id, dx, dz, yaw }`
+- `GET /state`
+
+## Checks
+
+```bash
+npm run check
+npm run smoke
+```
+
+## GitHub Pages
+
+- A raiz (`/index.html`) redireciona automaticamente para `./apps/client/`, permitindo abrir pelo link do GitHub Pages.
+- Para o multiplayer funcionar no Pages, configure o backend em uma URL pública e ajuste `SERVER` no cliente quando necessário.
+
+
+## Publicação no GitHub Pages (evitar tela em branco)
+
+Se a página abrir em branco, normalmente é deploy antigo com caminho quebrado (ex.: tentando carregar `/src/main.ts`).
+
+Este repositório agora inclui workflow em `.github/workflows/pages.yml` que publica o site estático correto em:
+
+- `https://<usuario>.github.io/Hubv4/`
+- `https://<usuario>.github.io/Hubv4/apps/client/`
+
+Depois de fazer push para `main`/`master`, valide no navegador com hard refresh (`Ctrl+F5`).
+
+
+### Evitar tela branca no GitHub Pages
+
+- O cliente agora usa um **boot fallback** visível durante o carregamento.
+- Se o módulo principal falhar, uma mensagem de erro aparece na própria página (em vez de tela branca).
+- Em `github.io`, configure `window.HUBV4_SERVER_URL` para habilitar multiplayer (senão ele abre em modo visual local).
+
+
+### Configuração explícita para GitHub Pages
+
+Você pode publicar o cliente sem backend e ele abrirá em **modo local visual**.
+
+Para habilitar multiplayer no Pages, defina antes do `main.js`:
+
+```html
+<script>
+  window.HUBV4_CONFIG = {
+    serverUrl: 'https://seu-backend-publico.exemplo.com'
+  };
+</script>
+```
+
+Sem isso, a tela ainda carrega normalmente, mas a entrada na sala ficará em modo local/standalone.
