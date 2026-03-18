@@ -1,28 +1,15 @@
-const boot = window.__HUBV4_BOOT__ ?? {
-  markReady() {},
-  setDebug() {}
-};
-
-const config = globalThis.HUBV4_CONFIG ?? {};
-const resolvedServer =
-  typeof config.serverUrl === 'string' && config.serverUrl.trim()
-    ? config.serverUrl.trim()
-    : location.hostname.endsWith('github.io')
-      ? ''
-      : `${location.protocol}//${location.hostname}:8080`;
-
-const SERVER = resolvedServer;
+const SERVER = `${location.protocol}//${location.hostname}:8080`;
 const canvas = document.querySelector('#game');
-const ctx = canvas?.getContext('2d', { alpha: false });
+const ctx = canvas.getContext('2d', { alpha: false });
+
 const lobby = document.querySelector('#lobby');
 const joinForm = document.querySelector('#join-form');
 const statusEl = document.querySelector('#status');
 const hud = document.querySelector('#hud');
 const playerLabel = document.querySelector('#player-label');
 const playersCount = document.querySelector('#players-count');
-const nameInput = document.querySelector('#name');
 
-if (!canvas || !ctx || !joinForm || !statusEl || !lobby || !hud || !playerLabel || !playersCount || !nameInput) {
+if (!ctx || !joinForm || !statusEl || !lobby || !hud || !playerLabel || !playersCount) {
   throw new Error('UI inválida');
 }
 
@@ -35,8 +22,7 @@ const state = {
   pos: { x: 0, z: 0 },
   lock: false,
   lastInputSync: 0,
-  running: false,
-  standalone: false
+  running: false
 };
 
 const MAP = {
@@ -44,17 +30,12 @@ const MAP = {
   walls: []
 };
 
-for (let z = 0; z < MAP.size; z += 1) {
-  for (let x = 0; x < MAP.size; x += 1) {
+for (let z = 0; z < MAP.size; z++) {
+  for (let x = 0; x < MAP.size; x++) {
     const border = x === 0 || z === 0 || x === MAP.size - 1 || z === MAP.size - 1;
-    const pillar = x % 4 === 0 && z % 4 === 0 && x > 2 && z > 2 && x < MAP.size - 3 && z < MAP.size - 3;
+    const pillar = (x % 4 === 0 && z % 4 === 0 && x > 2 && z > 2 && x < MAP.size - 3 && z < MAP.size - 3);
     MAP.walls.push(border || pillar ? 1 : 0);
   }
-}
-
-function setStatus(message) {
-  statusEl.textContent = message;
-  boot.setDebug(message);
 }
 
 function cellAt(x, z) {
@@ -72,31 +53,12 @@ function canMoveTo(nx, nz) {
   return cellAt(mx, mz) === 0;
 }
 
-function startStandaloneMode() {
-  state.standalone = true;
-  state.running = true;
-  state.me = 'local-player';
-  lobby.classList.add('hidden');
-  hud.classList.remove('hidden');
-  canvas.classList.remove('hidden');
-  playerLabel.textContent = 'Você: Visitante';
-  playersCount.textContent = 'Modo local (sem backend)';
-  setStatus('Modo local carregado. Configure HUBV4_CONFIG.serverUrl para multiplayer.');
-  boot.markReady();
-  requestAnimationFrame(loop);
-}
-
 async function api(path, method = 'GET', body) {
-  if (!SERVER) {
-    throw new Error('Servidor não configurado para este ambiente.');
-  }
-
   const res = await fetch(`${SERVER}${path}`, {
     method,
     headers: { 'content-type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined
   });
-
   if (!res.ok) throw new Error(`Erro ${res.status}`);
   return res.json();
 }
@@ -109,9 +71,61 @@ function resize() {
   canvas.style.height = `${window.innerHeight}px`;
 }
 
+window.addEventListener('resize', resize);
+resize();
+
+joinForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const name = document.querySelector('#name').value.trim();
+  statusEl.textContent = 'Entrando na sala...';
+
+  try {
+    const payload = await api('/join', 'POST', { name });
+    state.me = payload.you.id;
+    state.players = payload.players;
+    state.roomSize = payload.room.size;
+    state.pos.x = payload.you.x;
+    state.pos.z = payload.you.z;
+    state.yaw = payload.you.yaw;
+
+    lobby.classList.add('hidden');
+    hud.classList.remove('hidden');
+    canvas.classList.remove('hidden');
+    playerLabel.textContent = `Você: ${payload.you.name}`;
+
+    statusEl.textContent = 'Conectado';
+    state.running = true;
+    requestPointerLock();
+    requestAnimationFrame(loop);
+  } catch (err) {
+    statusEl.textContent = `Falha no join: ${err.message}`;
+  }
+});
+
 function requestPointerLock() {
   canvas.requestPointerLock?.();
 }
+
+canvas.addEventListener('click', requestPointerLock);
+
+document.addEventListener('pointerlockchange', () => {
+  state.lock = document.pointerLockElement === canvas;
+});
+
+document.addEventListener('mousemove', (event) => {
+  if (!state.lock) return;
+  state.yaw += event.movementX * 0.0025;
+});
+
+document.addEventListener('keydown', (event) => {
+  if (['w', 'a', 's', 'd'].includes(event.key.toLowerCase())) {
+    state.keys.add(event.key.toLowerCase());
+  }
+});
+
+document.addEventListener('keyup', (event) => {
+  state.keys.delete(event.key.toLowerCase());
+});
 
 function simulateMovement(dt) {
   const speed = 2.9;
@@ -122,18 +136,17 @@ function simulateMovement(dt) {
 
   const sin = Math.sin(state.yaw);
   const cos = Math.cos(state.yaw);
+
   const vx = (sin * forward + cos * strafe) * speed * dt;
   const vz = (cos * forward - sin * strafe) * speed * dt;
+
   const nx = state.pos.x + vx;
   const nz = state.pos.z + vz;
 
   if (canMoveTo(nx, state.pos.z)) state.pos.x = nx;
   if (canMoveTo(state.pos.x, nz)) state.pos.z = nz;
 
-  return {
-    dx: state.pos.x - (state.lastX ?? state.pos.x),
-    dz: state.pos.z - (state.lastZ ?? state.pos.z)
-  };
+  return { dx: state.pos.x - (state.lastX ?? state.pos.x), dz: state.pos.z - (state.lastZ ?? state.pos.z) };
 }
 
 function renderSkyFloor() {
@@ -170,11 +183,11 @@ function castRays() {
 
     if (hit) {
       const corrected = dist * Math.cos(cameraX);
-      const wallHeight = Math.min(height, (height * 0.82) / corrected);
-      const y = (height - wallHeight) / 2;
+      const wallH = Math.min(height, (height * 0.82) / corrected);
+      const y = (height - wallH) / 2;
       const shade = Math.max(30, 220 - corrected * 20) | 0;
       ctx.fillStyle = `rgb(${shade}, ${shade + 12}, ${shade + 20})`;
-      ctx.fillRect(x, y, 2, wallHeight);
+      ctx.fillRect(x, y, 2, wallH);
     }
   }
 }
@@ -193,27 +206,28 @@ function renderCrosshair() {
 }
 
 async function syncServer(dx, dz) {
-  if (!state.me || state.standalone) return;
-
+  if (!state.me) return;
   const now = performance.now();
   if (now - state.lastInputSync < 80) return;
   state.lastInputSync = now;
 
-  const payload = await api('/input', 'POST', {
-    id: state.me,
-    dx,
-    dz,
-    yaw: state.yaw
-  });
-
-  state.players = payload.players;
-  playersCount.textContent = `Jogadores na sala: ${payload.players.length}`;
+  try {
+    const payload = await api('/input', 'POST', {
+      id: state.me,
+      dx,
+      dz,
+      yaw: state.yaw
+    });
+    state.players = payload.players;
+    playersCount.textContent = `Jogadores na sala: ${payload.players.length}`;
+  } catch {
+    playersCount.textContent = 'Reconectando...';
+  }
 }
 
 let last = performance.now();
 function loop(now) {
   if (!state.running) return;
-
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
 
@@ -225,78 +239,15 @@ function loop(now) {
   castRays();
   renderCrosshair();
 
-  syncServer(movement.dx, movement.dz).catch(() => {
-    playersCount.textContent = state.standalone ? 'Modo local (sem backend)' : 'Reconectando...';
-  });
-
+  syncServer(movement.dx, movement.dz);
   requestAnimationFrame(loop);
 }
 
-window.addEventListener('resize', resize);
-canvas.addEventListener('click', requestPointerLock);
-
-document.addEventListener('pointerlockchange', () => {
-  state.lock = document.pointerLockElement === canvas;
-});
-
-document.addEventListener('mousemove', (event) => {
-  if (!state.lock) return;
-  state.yaw += event.movementX * 0.0025;
-});
-
-document.addEventListener('keydown', (event) => {
-  const key = event.key.toLowerCase();
-  if (['w', 'a', 's', 'd'].includes(key)) {
-    state.keys.add(key);
-  }
-});
-
-document.addEventListener('keyup', (event) => {
-  state.keys.delete(event.key.toLowerCase());
-});
-
-joinForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const name = nameInput.value.trim() || 'Visitante';
-  setStatus('Entrando na sala...');
-
+(async function bootstrap() {
   try {
-    const payload = await api('/join', 'POST', { name });
-    state.me = payload.you.id;
-    state.players = payload.players;
-    state.roomSize = payload.room.size;
-    state.pos.x = payload.you.x;
-    state.pos.z = payload.you.z;
-    state.yaw = payload.you.yaw;
-
-    lobby.classList.add('hidden');
-    hud.classList.remove('hidden');
-    canvas.classList.remove('hidden');
-    playerLabel.textContent = `Você: ${payload.you.name}`;
-    playersCount.textContent = `Jogadores na sala: ${payload.players.length}`;
-
-    state.running = true;
-    setStatus('Conectado');
-    boot.markReady();
-    requestPointerLock();
-    requestAnimationFrame(loop);
-  } catch (error) {
-    setStatus(`Falha no join: ${error.message}`);
+    const health = await api('/health');
+    statusEl.textContent = `Servidor online • sala ${health.roomSize}x${health.roomSize}`;
+  } catch {
+    statusEl.textContent = 'Servidor offline em http://localhost:8080';
   }
-});
-
-resize();
-
-if (!SERVER) {
-  startStandaloneMode();
-} else {
-  api('/health')
-    .then((health) => {
-      setStatus(`Servidor online • sala ${health.roomSize}x${health.roomSize}`);
-      boot.markReady();
-    })
-    .catch(() => {
-      setStatus(`Servidor offline em ${SERVER}`);
-      boot.markReady();
-    });
-}
+})();
